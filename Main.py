@@ -4,16 +4,14 @@ from ultralytics import YOLO
 
 # ---------------- Settings ----------------
 ZONE_SPLIT = (0.33, 0.66)           # left ends at 33% of width, right starts at 66%
-COOLDOWN_SECONDS = 4                # don't repeat a warning for the same (zone, object) within this window
+COOLDOWN_SECONDS = 4
 CONFIDENCE_THRESHOLD = 0.5          # ignore YOLO detections below this confidence
 CLOSE_SIZE_THRESHOLD = 0.35         # if the box's height is more than 35% of frame height, treat it as "close"
-YOLO_MODEL_NAME = "yolov8n.pt"      # nano model = fastest, good for real-time on CPU
-VIDEO_SOURCE = "videos/video1.mp4"  # change to 0 to use your webcam instead
+YOLO_MODEL_NAME = "yolov8n.pt"
+VIDEO_SOURCE = 0
 
-
-# ---------------- Cooldown tracker ----------------
 class CooldownTracker:
-    """Keyed by (zone, object type), so different objects in the same zone don't silence each other."""
+
     def __init__(self, cooldown_seconds: float):
         self.cooldown_seconds = cooldown_seconds
         self.last_warning_time = {}
@@ -26,7 +24,7 @@ class CooldownTracker:
 
 
 def get_zone(box_center_x: float, frame_width: int) -> str:
-    """Given an object's horizontal center, return 'left', 'center', or 'right'."""
+
     ratio = box_center_x / frame_width
     if ratio < ZONE_SPLIT[0]:
         return "left"
