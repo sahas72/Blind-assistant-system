@@ -1,77 +1,54 @@
-# AI Blind Assistance System — Real-Time Navigation Aid
+# Blind Assistance System (Simple Version)
 
-A real-time obstacle detection and voice warning system that combines **YOLOv8 object detection** with **MiDaS monocular depth estimation** to help identify nearby obstacles using just a single webcam — no stereo camera or LiDAR needed.
+A lightweight computer vision project that detects nearby obstacles in a video feed and prints a directional warning (left / ahead / right) to the console.
 
-## What It Does
+## What it does
 
-- Detects objects in the camera feed using YOLOv8 (people, chairs, doors, etc.)
-- Estimates how close each object is using MiDaS depth estimation on the same frame
-- Divides the frame into 3 zones — **left (20%)**, **center (60%)**, **right (20%)**
-- Speaks out warnings when something close is detected, e.g.:
-  - *"Warning, person ahead"*
-  - *"Chair on your left"*
-- Uses a **4-second cooldown per zone** so it doesn't spam the same warning every frame — new obstacles in a zone still trigger fresh warnings
+- Detects objects in each video frame using **YOLOv8**.
+- Estimates how close an object is by how large its bounding box is on screen — bigger box = closer object. No separate depth model needed.
+- Splits the frame into three zones (left, center, right) based on where the object is horizontally.
+- Prints a warning like `WARNING: chair ahead` when a close object is detected, with a cooldown so the same object/zone combo doesn't spam warnings every frame.
 
-## Demo
+## How it works
 
-*(Add a screenshot or GIF of the app running here once you've tested it — shows the bounding boxes, zone lines, and depth values on screen.)*
+1. Each frame is run through YOLOv8 to detect objects and their bounding boxes.
+2. For every detected object above the confidence threshold, its bounding box height (relative to the frame) is used as a simple proxy for distance.
+3. The object's horizontal position determines its zone: left, center, or right.
+4. If the object is "close" (box height ratio passes a threshold) and hasn't triggered a warning for that same zone/object combo recently, a warning is printed.
+5. Bounding boxes are drawn on screen in red (close) or green (not close) for visual debugging.
 
-## How It Works
+## Requirements
 
-1. Grab a frame from the webcam
-2. Run YOLOv8 on the frame to detect objects and their bounding boxes
-3. Run MiDaS on the same frame to generate a depth map (closer = higher value)
-4. Sample the depth map at each object's location to judge proximity
-5. Determine which zone (left/center/right) the object falls in based on its horizontal position
-6. If the object is close **and** that zone's cooldown has expired, speak a warning and reset the cooldown
+```
+opencv-python
+ultralytics
+```
 
-## Tech Stack
-
-- [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics) — object detection
-- [MiDaS](https://github.com/isl-org/MiDaS) (small/fast variant) — monocular depth estimation
-- OpenCV — video capture and display
-- pyttsx3 — offline text-to-speech
-- PyTorch — model backend
-
-## Installation
-
-```bash
+Install with:
+```
 pip install -r requirements.txt
 ```
 
-First run will automatically download the YOLOv8n and MiDaS_small model weights.
+## Running it
 
-## Usage
-
-```bash
-python blind_assist.py
+1. Place your input video at `videos/video1.mp4`, or change `VIDEO_SOURCE` in the script to `0` to use your webcam.
+2. Run:
 ```
+python simple_blind_assistant.py
+```
+3. Press `q` in the video window to quit.
 
-Press **`q`** in the video window to quit.
+## Settings you can tweak
 
-## Configuration
+| Setting | What it does |
+|---|---|
+| `ZONE_SPLIT` | Where the left/center/right boundaries fall (as fractions of frame width) |
+| `COOLDOWN_SECONDS` | How long to wait before repeating a warning for the same object/zone |
+| `CONFIDENCE_THRESHOLD` | Minimum YOLO confidence to consider a detection valid |
+| `CLOSE_SIZE_THRESHOLD` | How large (as a fraction of frame height) a box needs to be before it's considered "close" |
+| `YOLO_MODEL_NAME` | Which YOLOv8 model to use (nano is fastest, good for CPU) |
 
-Key settings are at the top of `blind_assist.py`:
+## Notes / Future work
 
-| Setting | Description | Default |
-|---|---|---|
-| `ZONE_SPLIT` | Where left/center/right boundaries fall (as % of frame width) | `(0.20, 0.80)` |
-| `COOLDOWN_SECONDS` | Minimum seconds between repeat warnings per zone | `4` |
-| `CLOSE_DISTANCE_THRESHOLD` | Normalized depth (0=far, 1=near) above which an object is "close" | `0.55` |
-| `CONFIDENCE_THRESHOLD` | Minimum YOLO detection confidence to consider | `0.5` |
-| `CAMERA_INDEX` | Which webcam to use | `0` |
-
-> **Note:** MiDaS depth values are *relative*, not real-world meters — `CLOSE_DISTANCE_THRESHOLD` needs to be tuned by testing in your actual environment.
-
-## Known Limitations
-
-- MiDaS inference can be slow on CPU-only machines, which may lag the frame rate
-- Depth is relative per-frame, not calibrated to real-world distance
-- Voice warnings rely on the object staying detected across frames within the cooldown window
-
-## Possible Improvements
-
-- Run MiDaS every 2-3 frames instead of every frame to improve FPS on slower hardware
-- Add distance categories (e.g. "very close" vs "approaching") instead of a single threshold
-- Support stereo cameras or depth sensors for more accurate real-world distance
-- Add adjustable voice language/speed settings for accessibility
+- Currently prints warnings to the console instead of speaking them aloud — text-to-speech was explored but hit a platform-specific audio engine issue that needs further investigation.
+- Distance estimation is a simple size-based heuristic rather than true depth estimation, which keeps the project fast and dependency-light.
